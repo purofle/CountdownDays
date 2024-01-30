@@ -22,6 +22,7 @@ fun Application.configureAuthentication() {
 
     val configText =
         Path("config.yaml").takeIf { it.isReadable() }?.readText() ?: throw Exception("config.yaml not found")
+
     val authToken = Yaml().decodeFromString(Config.serializer(), configText).bot.auth
 
     install(Authentication) {
