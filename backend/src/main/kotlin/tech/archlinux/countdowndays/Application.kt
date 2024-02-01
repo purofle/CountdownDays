@@ -1,6 +1,7 @@
 package tech.archlinux.countdowndays
 
 import io.ktor.server.application.*
+import tech.archlinux.countdowndays.database.DatabaseManager
 import tech.archlinux.countdowndays.plugins.*
 
 fun main(args: Array<String>) {
@@ -8,6 +9,9 @@ fun main(args: Array<String>) {
 }
 
 fun Application.module() {
+
+    DatabaseManager()
+
     configureHTTP()
     configureMonitoring()
     configureSerialization()
