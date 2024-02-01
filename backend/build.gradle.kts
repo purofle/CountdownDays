@@ -12,6 +12,10 @@ plugins {
 group = "tech.archlinux.countdowndays"
 version = "0.0.1"
 
+kotlin {
+    jvmToolchain(17)
+}
+
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
 
@@ -42,6 +46,8 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-kotlin-datetime:$exposedVersion")
+
+    implementation("com.impossibl.pgjdbc-ng:pgjdbc-ng:0.8.9")
 
     testImplementation("io.ktor:ktor-server-tests-jvm")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
