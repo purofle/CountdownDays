@@ -2,4 +2,9 @@ module github.com/purofle/countdowndays
 
 go 1.21.6
 
-require gopkg.in/telebot.v3 v3.2.1 // indirect
+require (
+	github.com/go-resty/resty/v2 v2.11.0
+	gopkg.in/telebot.v3 v3.2.1
+)
+
+require golang.org/x/net v0.17.0 // indirect
