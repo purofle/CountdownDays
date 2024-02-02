@@ -6,50 +6,54 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.jetbrains.exposed.sql.transactions.transaction
-import tech.archlinux.countdowndays.database.User
-import tech.archlinux.countdowndays.database.dbQuery
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import tech.archlinux.countdowndays.database.*
 import tech.archlinux.countdowndays.request.AddUserRequest
 import tech.archlinux.countdowndays.response.UserResponse
 
 fun Application.configureRouting() {
     routing {
 
+        // get user public information
         get("/user/{id}") {
-            val id = call.parameters["id"] ?: return@get call.respondText(
-                "Missing or malformed id",
+
+            val telegramId = runCatching {
+                call.parameters["id"]!!.toLong()
+            }.getOrNull() ?: return@get call.respondText(
+                "Missing or invalid id",
                 status = HttpStatusCode.BadRequest
             )
-            val telegramId = runCatching {
-                id.toInt()
-            }.getOrNull() ?: return@get call.respondText("Invalid id", status = HttpStatusCode.BadRequest)
 
             dbQuery {
-                User.findById(telegramId)
+                User.findByTelegramId(telegramId)
             }?.let {
-                call.respond(
-                    UserResponse(
-                        id = it.id.value,
-                        username = it.username,
-                        name = it.name
-                    )
-                )
-                return@get
+                return@get call.respond(it.toResponse())
             }
 
             call.respondText("$telegramId not in database", status = HttpStatusCode.NotFound)
         }
 
         authenticate("auth-bot") {
+            // add user
             post("/user") {
                 val userRequest = call.receive<AddUserRequest>()
 
-                dbQuery {
-                    User.new(userRequest.telegramId) {
+                val newUser = dbQuery {
+                    User.new {
+                        telegramId = userRequest.telegramId
                         username = userRequest.username
                         name = userRequest.name
                     }
                 }
+
+                return@post call.respond(
+                    UserResponse(
+                        id = newUser.id.value,
+                        username = newUser.username,
+                        name = newUser.name,
+                        telegramId = newUser.telegramId
+                    )
+                )
             }
         }
     }
