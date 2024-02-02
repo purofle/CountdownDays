@@ -107,7 +107,7 @@ func main() {
 
 			results[i] = &tele.ArticleResult{
 				Title: text,
-				Text:  fmt.Sprintf("距离 %s %s%d 天\n\n日期：%s", c.Name, middleStr, days, c.Date),
+				Text:  fmt.Sprintf("距离 %s %s%d天\n\n日期：%s", c.Name, middleStr, days, c.Date),
 			}
 			results[i].SetResultID(strconv.Itoa(i))
 		}
