@@ -7,6 +7,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.datetime.LocalDate
+import org.jetbrains.exposed.sql.SortOrder
 import tech.archlinux.countdowndays.database.*
 import tech.archlinux.countdowndays.request.AddCountdownRequest
 import tech.archlinux.countdowndays.request.AddUserRequest
@@ -100,7 +101,10 @@ fun Application.configureRouting() {
                 )
 
                 val countdowns = dbQuery {
-                    Record.find { Records.owner eq user.id }.map { it.toResponse() }
+                    Record.find { Records.owner eq user.id }
+                        .limit(20)
+                        .orderBy(Records.date to SortOrder.ASC)
+                        .map { it.toResponse() }
                 }
 
                 call.respond(countdowns)
