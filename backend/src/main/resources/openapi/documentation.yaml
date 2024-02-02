@@ -6,6 +6,31 @@ info:
 servers:
 - url: "https://CountdownDays"
 paths:
+  /countdown:
+    post:
+      description: "add countdown"
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: "#/components/schemas/AddCountdownRequest"
+        required: true
+      responses:
+        "404":
+          description: "Not Found"
+          content:
+            text/plain:
+              schema:
+                type: "string"
+              examples:
+                Example#1:
+                  value: "User not found"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Record"
   /user:
     post:
       description: "add user"
@@ -15,6 +40,13 @@ paths:
             schema:
               $ref: "#/components/schemas/AddUserRequest"
         required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
   /user/{id}:
     get:
       description: "get user public information"
@@ -33,9 +65,7 @@ paths:
                 type: "string"
               examples:
                 Example#1:
-                  value: "Invalid id"
-                Example#2:
-                  value: "Missing or malformed id"
+                  value: "Missing or invalid id"
         "200":
           description: "OK"
           content:
@@ -53,12 +83,45 @@ paths:
                   value: ""
 components:
   schemas:
+    AddCountdownRequest:
+      type: "object"
+      properties:
+        telegramId:
+          type: "integer"
+          format: "int64"
+        name:
+          type: "string"
+        date:
+          type: "string"
+      required:
+      - "name"
+      - "date"
+    Object:
+      type: "object"
+      properties: {}
+    ResultRow:
+      type: "object"
+      properties:
+        fieldIndex:
+          type: "object"
+      required:
+      - "fieldIndex"
+    Record:
+      type: "object"
+      properties:
+        writeValues:
+          $ref: "#/components/schemas/Object"
+        _readValues:
+          $ref: "#/components/schemas/ResultRow"
+      required:
+      - "id"
+      - "writeValues"
     AddUserRequest:
       type: "object"
       properties:
         telegramId:
           type: "integer"
-          format: "int32"
+          format: "int64"
         username:
           type: "string"
         name:
@@ -72,6 +135,9 @@ components:
         id:
           type: "integer"
           format: "int32"
+        telegramId:
+          type: "integer"
+          format: "int64"
         username:
           type: "string"
         name:

@@ -6,8 +6,9 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import kotlinx.datetime.LocalDate
 import tech.archlinux.countdowndays.database.*
+import tech.archlinux.countdowndays.request.AddCountdownRequest
 import tech.archlinux.countdowndays.request.AddUserRequest
 import tech.archlinux.countdowndays.response.UserResponse
 
@@ -36,13 +37,13 @@ fun Application.configureRouting() {
         authenticate("auth-bot") {
             // add user
             post("/user") {
-                val userRequest = call.receive<AddUserRequest>()
+                val request = call.receive<AddUserRequest>()
 
                 val newUser = dbQuery {
                     User.new {
-                        telegramId = userRequest.telegramId
-                        username = userRequest.username
-                        name = userRequest.name
+                        telegramId = request.telegramId
+                        username = request.username
+                        name = request.name
                     }
                 }
 
@@ -54,6 +55,54 @@ fun Application.configureRouting() {
                         telegramId = newUser.telegramId
                     )
                 )
+            }
+
+            // add countdown
+            post("/countdown") {
+                val request = call.receive<AddCountdownRequest>()
+
+                val user = dbQuery {
+                    User.findByTelegramId(request.telegramId)
+                } ?: return@post call.respondText(
+                    "User not found",
+                    status = HttpStatusCode.NotFound
+                )
+
+                // String to LocalDate
+                // 1989-06-04
+                val localDate = LocalDate.parse(request.date)
+
+                val newCountdown = dbQuery {
+                    Record.new {
+                        name = request.name
+                        date = localDate
+                        owner = user
+                    }
+                }
+
+                return@post call.respond(newCountdown.date)
+            }
+
+            get("/countdown/{id}/all") {
+                val telegramId = runCatching {
+                    call.parameters["id"]!!.toLong()
+                }.getOrNull() ?: return@get call.respondText(
+                    "Missing or invalid id",
+                    status = HttpStatusCode.BadRequest
+                )
+
+                val user = dbQuery {
+                    User.findByTelegramId(telegramId)
+                } ?: return@get call.respondText(
+                    "User not found",
+                    status = HttpStatusCode.NotFound
+                )
+
+                val countdowns = dbQuery {
+                    Record.find { Records.owner eq user.id }
+                }
+
+                call.respond(countdowns.map { it.toResponse() })
             }
         }
     }
