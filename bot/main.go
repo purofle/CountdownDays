@@ -56,7 +56,27 @@ func main() {
 			log.Println("New user: ", user)
 		}
 
-		return c.Send("")
+		countdown := &Countdown{
+			TelegramId: c.Sender().ID,
+			Name:       rawCommand[2],
+			Date:       rawCommand[1],
+		}
+
+		newCountdown, err := NewCountdown(countdown)
+		if err != nil {
+			return err
+		}
+
+		return c.Send(newCountdown)
+	})
+
+	b.Handle("/all", func(c tele.Context) error {
+		countdowns, err := GetAllCountdown(c.Sender())
+		if err != nil {
+			return err
+		}
+
+		return c.Send(countdowns)
 	})
 
 	b.Start()

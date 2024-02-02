@@ -13,8 +13,33 @@ func client() *resty.Client {
 
 }
 
-func PostCountdown() {
+type Countdown struct {
+	TelegramId int64  `json:"telegram_id"`
+	Name       string `json:"name"`
+	Date       string `json:"date"`
+}
 
+func NewCountdown(countdown *Countdown) (string, error) {
+	response, err := client().R().
+		SetBody(countdown).
+		Post("/countdown")
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(response.Body()), nil
+}
+
+func GetAllCountdown(user *tele.User) (string, error) {
+	response, err := client().R().
+		Get(fmt.Sprintf("/countdown/%d/all", user.ID))
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(response.Body()), nil
 }
 
 func NewUser(user *tele.User) (string, error) {
