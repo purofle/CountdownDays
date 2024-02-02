@@ -115,8 +115,9 @@ func main() {
 		}
 
 		return c.Answer(&tele.QueryResponse{
-			Results:   results,
-			CacheTime: 0,
+			Results:    results,
+			CacheTime:  0,
+			IsPersonal: true,
 		})
 	})
 
