@@ -49,6 +49,11 @@ func main() {
 		_, err = GetUser(c.Sender())
 		if err != nil {
 			// 添加用户到数据库
+			user, err := NewUser(c.Sender())
+			if err != nil {
+				return err
+			}
+			log.Println("New user: ", user)
 		}
 
 		return c.Send("")
