@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	tele "gopkg.in/telebot.v3"
@@ -31,15 +32,35 @@ func NewCountdown(countdown *Countdown) (string, error) {
 	return string(response.Body()), nil
 }
 
-func GetAllCountdown(user *tele.User) (string, error) {
+type CountdownResponse struct {
+	Id              int    `json:"id"`
+	Name            string `json:"name"`
+	Date            string `json:"date"`
+	Description     string `json:"description"`
+	ShowAnniversary bool   `json:"show_anniversary"`
+	Owner           struct {
+		Id         int    `json:"id"`
+		TelegramId int64  `json:"telegram_id"`
+		Username   string `json:"username"`
+		Name       string `json:"name"`
+	} `json:"owner"`
+}
+
+func GetAllCountdown(user *tele.User) ([]CountdownResponse, error) {
 	response, err := client().R().
 		Get(fmt.Sprintf("/countdown/%d/all", user.ID))
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(response.Body()), nil
+	var countdowns []CountdownResponse
+	err = json.Unmarshal(response.Body(), &countdowns)
+	if err != nil {
+		return nil, err
+	}
+
+	return countdowns, nil
 }
 
 func NewUser(user *tele.User) (string, error) {

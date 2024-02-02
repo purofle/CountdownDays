@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,7 +77,45 @@ func main() {
 			return err
 		}
 
-		return c.Send(countdowns)
+		text := "你的倒计时：\n"
+		for _, c := range countdowns {
+			text += fmt.Sprintf("%s: %s\n", c.Name, c.Date)
+		}
+
+		return c.Send(text)
+	})
+
+	b.Handle(tele.OnQuery, func(c tele.Context) error {
+
+		countdowns, err := GetAllCountdown(c.Sender())
+		if err != nil {
+			return err
+		}
+
+		results := make(tele.Results, len(countdowns))
+		for i, c := range countdowns {
+
+			startDate, _ := time.Parse(time.DateOnly, c.Date)
+			days := int(time.Now().Sub(startDate).Hours() / 24)
+			middleStr := "已经"
+			if days < 0 {
+				days = -days
+				middleStr = "还有"
+			}
+
+			text := fmt.Sprintf("%s: %d天", c.Name, days)
+
+			results[i] = &tele.ArticleResult{
+				Title: text,
+				Text:  fmt.Sprintf("距离 %s %s%d 天\n\n日期：%s", c.Name, middleStr, days, c.Date),
+			}
+			results[i].SetResultID(strconv.Itoa(i))
+		}
+
+		return c.Answer(&tele.QueryResponse{
+			Results:   results,
+			CacheTime: 60,
+		})
 	})
 
 	b.Start()

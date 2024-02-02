@@ -83,6 +83,7 @@ fun Application.configureRouting() {
                 return@post call.respond(newCountdown.date)
             }
 
+            // get all countdowns for a user
             get("/countdown/{id}/all") {
                 val telegramId = runCatching {
                     call.parameters["id"]!!.toLong()
@@ -99,10 +100,10 @@ fun Application.configureRouting() {
                 )
 
                 val countdowns = dbQuery {
-                    Record.find { Records.owner eq user.id }
+                    Record.find { Records.owner eq user.id }.map { it.toResponse() }
                 }
 
-                call.respond(countdowns.map { it.toResponse() })
+                call.respond(countdowns)
             }
         }
     }
