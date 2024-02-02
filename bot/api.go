@@ -60,6 +60,10 @@ func GetAllCountdown(user *tele.User) ([]CountdownResponse, error) {
 		return nil, err
 	}
 
+	if response.StatusCode() != 200 {
+		return nil, fmt.Errorf("no countdown found")
+	}
+
 	return countdowns, nil
 }
 

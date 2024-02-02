@@ -87,6 +87,8 @@ func main() {
 
 	b.Handle(tele.OnQuery, func(c tele.Context) error {
 
+		log.Println(c.Sender().Username, "searching")
+
 		countdowns, err := GetAllCountdown(c.Sender())
 		if err != nil {
 			return err
@@ -114,7 +116,7 @@ func main() {
 
 		return c.Answer(&tele.QueryResponse{
 			Results:   results,
-			CacheTime: 60,
+			CacheTime: 0,
 		})
 	})
 
