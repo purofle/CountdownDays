@@ -142,10 +142,9 @@ func NewHandlers(h handlers) Handlers {
 func BindHandlers(h *telegohandler.BotHandler, handlers Handlers) {
 	group := h.Group()
 	group.Use(telegohandler.PanicRecovery())
-	// TODO: limit in pm
 
-	group.Handle(handlers.HelloHandler, telegohandler.CommandEqual("hello"))
-	group.Handle(handlers.AddHandler, telegohandler.CommandEqual("add"))
-	group.Handle(handlers.AllHandler, telegohandler.CommandEqual("all"))
+	group.Handle(handlers.HelloHandler, telegohandler.And(telegohandler.CommandEqual("hello"), PrivateChatOnly()))
+	group.Handle(handlers.AddHandler, telegohandler.And(telegohandler.CommandEqual("add"), PrivateChatOnly()))
+	group.Handle(handlers.AllHandler, telegohandler.And(telegohandler.CommandEqual("all"), PrivateChatOnly()))
 	group.Handle(handlers.QueryHandler, telegohandler.AnyInlineQuery())
 }
