@@ -4,21 +4,22 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/mymmrac/telego"
+	"github.com/mymmrac/telego/telegohandler"
+	"github.com/mymmrac/telego/telegoutil"
 	"go.uber.org/fx"
-	"gopkg.in/telebot.v3"
 
 	"github.com/purofle/countdowndays/api"
 )
 
 type Handlers interface {
-	HelloHandler(c telebot.Context) error
-	AddHandler(c telebot.Context) error
-	AllHandler(c telebot.Context) error
-	QueryHandler(c telebot.Context) error
+	HelloHandler(bot *telego.Bot, update telego.Update)
+	AddHandler(bot *telego.Bot, update telego.Update)
+	AllHandler(bot *telego.Bot, update telego.Update)
+	QueryHandler(bot *telego.Bot, update telego.Update)
 }
 
 type handlers struct {
@@ -26,67 +27,71 @@ type handlers struct {
 	ApiClient api.Client
 }
 
-func (h *handlers) HelloHandler(c telebot.Context) error {
-	return c.Send("Hello!")
+func (h *handlers) HelloHandler(bot *telego.Bot, update telego.Update) {
+	if _, err := bot.SendMessage(telegoutil.Message(telegoutil.ID(update.Message.Chat.ID), "Hello, World!")); err != nil {
+		slog.Error("failed to send message", "error", err)
+	}
 }
 
-func (h *handlers) AddHandler(c telebot.Context) error {
-	sender := c.Sender()
-	if sender == nil || sender.IsBot {
-		return c.Send("Sender not legal")
-	}
+func (h *handlers) AddHandler(bot *telego.Bot, update telego.Update) {
+	id := update.Message.From.ID
 
-	msgText := c.Message().Text
+	msgText := update.Message.Text
 	rawCommand := strings.Split(msgText, " ")
 	rawCommand = slices.DeleteFunc(rawCommand, func(s string) bool {
 		return s == ""
 	})
 
 	if len(rawCommand) != 3 {
-		return c.Send("请按照格式发送。格式：`/add 1989-06-04 名字`", telebot.ModeMarkdownV2)
+		bot.SendMessage(telegoutil.Message(telegoutil.ID(id), "请按照格式发送。格式：`/add 1989-06-04 名字`").WithParseMode(telego.ModeMarkdownV2))
+		return
 	}
 
 	if _, err := time.Parse(time.DateOnly, rawCommand[1]); err != nil {
-		return c.Send(fmt.Sprintf("时间格式错误：%s", err))
+		bot.SendMessage(telegoutil.Message(telegoutil.ID(id), fmt.Sprintf("时间格式错误：%s", err)))
+		return
 	}
 
-	if _, err := h.ApiClient.GetUser(sender.ID); err != nil {
+	if _, err := h.ApiClient.GetUser(id); err != nil {
 		// 添加用户到数据库
 		user, err := h.ApiClient.NewUser(&api.User{
-			TelegramId: sender.ID,
-			Username:   sender.Username,
-			Name:       sender.FirstName,
+			TelegramId: id,
+			Username:   update.Message.From.Username,
+			Name:       update.Message.From.FirstName,
 		})
 		if err != nil {
-			return err
+			bot.SendMessage(telegoutil.Message(telegoutil.ID(id), "创建用户失败"))
+			slog.Error("failed to create new user", "error", err)
+			return
 		}
 
 		slog.Info("New user: ", user)
 	}
 
 	countdown := &api.Countdown{
-		TelegramId: sender.ID,
+		TelegramId: id,
 		Name:       rawCommand[2],
 		Date:       rawCommand[1],
 	}
 
 	newCountdown, err := h.ApiClient.NewCountdown(countdown)
 	if err != nil {
-		return err
+		bot.SendMessage(telegoutil.Message(telegoutil.ID(id), "创建倒计时失败"))
+		slog.Error("failed to create new countdown", "error", err)
+		return
 	}
 
-	return c.Send(newCountdown)
+	bot.SendMessage(telegoutil.Message(telegoutil.ID(id), newCountdown))
 }
 
-func (h *handlers) AllHandler(c telebot.Context) error {
-	sender := c.Sender()
-	if sender == nil || sender.IsBot {
-		return c.Send("Sender not legal")
-	}
+func (h *handlers) AllHandler(bot *telego.Bot, update telego.Update) {
+	id := update.Message.From.ID
 
-	countdowns, err := h.ApiClient.GetAllCountdown(sender.ID)
+	countdowns, err := h.ApiClient.GetAllCountdown(id)
 	if err != nil {
-		return err
+		slog.Error("failed to get all countdowns", "error", err)
+		bot.SendMessage(telegoutil.Message(telegoutil.ID(id), "获取倒计时失败"))
+		return
 	}
 
 	text := "你的倒计时：\n"
@@ -94,25 +99,22 @@ func (h *handlers) AllHandler(c telebot.Context) error {
 		text += fmt.Sprintf("%s: %s\n", c.Name, c.Date)
 	}
 
-	return c.Send(text)
+	bot.SendMessage(telegoutil.Message(telegoutil.ID(id), text))
 }
 
-func (h *handlers) QueryHandler(c telebot.Context) error {
-	sender := c.Sender()
-	if sender == nil || sender.IsBot {
-		return c.Send("Sender not legal")
-	}
+func (h *handlers) QueryHandler(bot *telego.Bot, update telego.Update) {
+	id := update.InlineQuery.From.ID
 
-	slog.Debug(sender.Username, "searching")
+	slog.Debug("inline query", "query", update.InlineQuery.Query, "username", update.InlineQuery.From.Username)
 
-	countdowns, err := h.ApiClient.GetAllCountdown(sender.ID)
+	countdowns, err := h.ApiClient.GetAllCountdown(id)
 	if err != nil {
-		return err
+		slog.Error("failed to get all countdowns", "error", err)
+		return
 	}
 
-	results := make(telebot.Results, len(countdowns))
+	results := make([]telego.InlineQueryResult, len(countdowns))
 	for i, c := range countdowns {
-
 		startDate, _ := time.Parse(time.DateOnly, c.Date)
 		days := int(time.Now().Sub(startDate).Hours() / 24)
 		middleStr := "已经"
@@ -123,27 +125,27 @@ func (h *handlers) QueryHandler(c telebot.Context) error {
 
 		text := fmt.Sprintf("%s: %d天", c.Name, days)
 
-		results[i] = &telebot.ArticleResult{
-			Title: text,
-			Text:  fmt.Sprintf("距离 %s %s%d天\n\n日期：%s", c.Name, middleStr, days, c.Date),
-		}
-		results[i].SetResultID(strconv.Itoa(i))
+		results[i] = telegoutil.ResultArticle(
+			update.InlineQuery.ID,
+			text,
+			telegoutil.TextMessage(fmt.Sprintf("距离 %s %s%d天\n\n日期：%s", c.Name, middleStr, days, c.Date)),
+		)
 	}
 
-	return c.Answer(&telebot.QueryResponse{
-		Results:    results,
-		CacheTime:  0,
-		IsPersonal: true,
-	})
+	bot.AnswerInlineQuery(telegoutil.InlineQuery(update.InlineQuery.ID, results...).WithCacheTime(0).WithIsPersonal())
 }
 
 func NewHandlers(h handlers) Handlers {
 	return &h
 }
 
-func BindHandlers(bot *telebot.Bot, h Handlers) {
-	bot.Handle("/hello", h.HelloHandler)
-	bot.Handle("/add", h.AddHandler)
-	bot.Handle("/all", h.AllHandler)
-	bot.Handle(telebot.OnQuery, h.QueryHandler)
+func BindHandlers(h *telegohandler.BotHandler, handlers Handlers) {
+	group := h.Group()
+	group.Use(telegohandler.PanicRecovery())
+	// TODO: limit in pm
+
+	group.Handle(handlers.HelloHandler, telegohandler.CommandEqual("hello"))
+	group.Handle(handlers.AddHandler, telegohandler.CommandEqual("add"))
+	group.Handle(handlers.AllHandler, telegohandler.CommandEqual("all"))
+	group.Handle(handlers.QueryHandler, telegohandler.AnyInlineQuery())
 }

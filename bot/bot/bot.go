@@ -4,36 +4,58 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"time"
 
 	"go.uber.org/fx"
-	"gopkg.in/telebot.v3"
+
+	"github.com/mymmrac/telego"
+	"github.com/mymmrac/telego/telegohandler"
 )
 
-func NewBot(lc fx.Lifecycle) (*telebot.Bot, error) {
-	b, err := telebot.NewBot(telebot.Settings{
-		Token:  os.Getenv("TOKEN"),
-		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
-	})
+func NewBot() (*telego.Bot, error) {
+	b, err := telego.NewBot(os.Getenv("TOKEN"), telego.WithHealthCheck())
 	if err != nil {
 		slog.Error("failed to create new bot", "error", err)
 		return nil, err
 	}
 
+	return b, nil
+}
+
+func NewUpdateChannel(bot *telego.Bot) (<-chan telego.Update, error) {
+	ch, err := bot.UpdatesViaLongPolling(&telego.GetUpdatesParams{
+		Offset:  0,
+		Timeout: 60,
+		Limit:   100,
+	})
+	if err != nil {
+		slog.Error("failed to start long polling", "error", err)
+		return nil, err
+	}
+
+	return ch, nil
+}
+
+func NewHandler(bot *telego.Bot, updates <-chan telego.Update, lc fx.Lifecycle) (*telegohandler.BotHandler, error) {
+	h, err := telegohandler.NewBotHandler(bot, updates)
+	if err != nil {
+		slog.Error("failed to create new bot handler", "error", err)
+		return nil, err
+	}
+
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			go b.Start()
-			slog.Info("Bot started")
+			go h.Start()
+			slog.Info("bot started")
 
 			return nil
 		},
 		OnStop: func(context.Context) error {
-			b.Stop()
-			slog.Info("Bot stopped")
+			h.Stop()
+			slog.Info("bot stopped")
 
 			return nil
 		},
 	})
 
-	return b, nil
+	return h, nil
 }
