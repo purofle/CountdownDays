@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	tele "gopkg.in/telebot.v3"
@@ -30,11 +28,7 @@ func main() {
 
 	b.Handle("/add", func(c tele.Context) error {
 
-		msgText := c.Message().Text
-		rawCommand := strings.Split(msgText, " ")
-		rawCommand = slices.DeleteFunc(rawCommand, func(s string) bool {
-			return s == ""
-		})
+		rawCommand := GetRawCommand(c.Message().Text)
 
 		if len(rawCommand) != 3 {
 			return c.Send("请按照格式发送。格式：`/add 1989-06-04 名字`", tele.ModeMarkdownV2)
@@ -71,11 +65,7 @@ func main() {
 
 	b.Handle("/delete", func(c tele.Context) error {
 
-		msgText := c.Message().Text
-		rawCommand := strings.Split(msgText, " ")
-		rawCommand = slices.DeleteFunc(rawCommand, func(s string) bool {
-			return s == ""
-		})
+		rawCommand := GetRawCommand(c.Message().Text)
 
 		if len(rawCommand) != 2 {
 			return c.Send("请按照格式发送。格式：`/delete 1`", tele.ModeMarkdownV2)
