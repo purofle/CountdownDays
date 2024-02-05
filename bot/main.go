@@ -30,8 +30,6 @@ func main() {
 
 	b.Handle("/add", func(c tele.Context) error {
 
-		c.Sender()
-
 		msgText := c.Message().Text
 		rawCommand := strings.Split(msgText, " ")
 		rawCommand = slices.DeleteFunc(rawCommand, func(s string) bool {
@@ -71,6 +69,31 @@ func main() {
 		return c.Send(newCountdown)
 	})
 
+	b.Handle("/delete", func(c tele.Context) error {
+
+		msgText := c.Message().Text
+		rawCommand := strings.Split(msgText, " ")
+		rawCommand = slices.DeleteFunc(rawCommand, func(s string) bool {
+			return s == ""
+		})
+
+		if len(rawCommand) != 2 {
+			return c.Send("请按照格式发送。格式：`/delete 1`", tele.ModeMarkdownV2)
+		}
+
+		id, err := strconv.Atoi(rawCommand[1])
+		if err != nil {
+			return c.Send(fmt.Sprintf("ID格式错误：%s", err))
+		}
+
+		err = DeleteCountdown(c.Sender(), id)
+		if err != nil {
+			return c.Send(fmt.Sprintf("删除ID为%d的倒计时失败：%s", id, err))
+		}
+
+		return c.Send(fmt.Sprintf("删除ID为%d的倒计时成功", id))
+	})
+
 	b.Handle("/all", func(c tele.Context) error {
 		countdowns, err := GetAllCountdown(c.Sender())
 		if err != nil {
@@ -79,7 +102,7 @@ func main() {
 
 		text := "你的倒计时：\n"
 		for _, c := range countdowns {
-			text += fmt.Sprintf("%s: %s\n", c.Name, c.Date)
+			text += fmt.Sprintf("%s(%d): %s\n", c.Name, c.Id, c.Date)
 		}
 
 		return c.Send(text)

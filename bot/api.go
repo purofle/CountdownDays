@@ -11,7 +11,6 @@ func client() *resty.Client {
 	return resty.New().
 		SetBaseURL("http://localhost:8080").
 		SetBasicAuth("bot", "auth_token")
-
 }
 
 type Countdown struct {
@@ -65,6 +64,17 @@ func GetAllCountdown(user *tele.User) ([]CountdownResponse, error) {
 	}
 
 	return countdowns, nil
+}
+
+func DeleteCountdown(user *tele.User, id int) error {
+	_, err := client().R().
+		Delete(fmt.Sprintf("/countdown/%d/%d", user.ID, id))
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewUser(user *tele.User) (string, error) {
