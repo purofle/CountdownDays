@@ -109,6 +109,28 @@ fun Application.configureRouting() {
 
                 call.respond(countdowns)
             }
+
+            delete("/countdown/{id}") {
+                val countdownId = runCatching {
+                    call.parameters["id"]!!.toInt()
+                }.getOrNull() ?: return@delete call.respondText(
+                    "Missing or invalid id",
+                    status = HttpStatusCode.BadRequest
+                )
+
+                val countdown = dbQuery {
+                    Record.findById(countdownId)
+                }
+
+                dbQuery {
+                    countdown?.delete()
+                } ?: return@delete call.respondText(
+                    "Countdown not found",
+                    status = HttpStatusCode.NotFound
+                )
+
+                call.respondText("Countdown deleted", status = HttpStatusCode.OK)
+            }
         }
     }
 }
