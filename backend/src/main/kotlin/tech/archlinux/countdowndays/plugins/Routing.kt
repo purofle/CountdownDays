@@ -110,7 +110,15 @@ fun Application.configureRouting() {
                 call.respond(countdowns)
             }
 
-            delete("/countdown/{id}") {
+            delete("/countdown/{user}/{id}") {
+
+                val telegramId = runCatching {
+                    call.parameters["user"]!!.toLong()
+                }.getOrNull() ?: return@delete call.respondText(
+                    "Missing or invalid id",
+                    status = HttpStatusCode.BadRequest
+                )
+
                 val countdownId = runCatching {
                     call.parameters["id"]!!.toInt()
                 }.getOrNull() ?: return@delete call.respondText(
@@ -118,16 +126,37 @@ fun Application.configureRouting() {
                     status = HttpStatusCode.BadRequest
                 )
 
+                val user = dbQuery {
+                    User.findByTelegramId(telegramId)
+                } ?: return@delete call.respondText(
+                    "User not found",
+                    status = HttpStatusCode.NotFound
+                )
+
                 val countdown = dbQuery {
                     Record.findById(countdownId)
                 }
 
+                if (countdown == null) {
+                    return@delete call.respondText(
+                        "Countdown not found",
+                        status = HttpStatusCode.NotFound
+                    )
+                }
+
+                val owner = dbQuery {
+                    countdown.owner.id
+                }
+                if (owner != user.id) {
+                    return@delete call.respondText(
+                        "Countdown not found",
+                        status = HttpStatusCode.NotFound
+                    )
+                }
+
                 dbQuery {
-                    countdown?.delete()
-                } ?: return@delete call.respondText(
-                    "Countdown not found",
-                    status = HttpStatusCode.NotFound
-                )
+                    countdown.delete()
+                }
 
                 call.respondText("Countdown deleted", status = HttpStatusCode.OK)
             }

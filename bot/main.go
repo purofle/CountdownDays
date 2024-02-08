@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -76,7 +77,7 @@ func main() {
 			return c.Send(fmt.Sprintf("ID格式错误：%s", err))
 		}
 
-		err = DeleteCountdown(c.Sender(), id)
+		_, err = DeleteCountdown(c.Sender(), id)
 		if err != nil {
 			return c.Send(fmt.Sprintf("删除ID为%d的倒计时失败：%s", id, err))
 		}
@@ -98,20 +99,21 @@ func main() {
 		return c.Send(text)
 	})
 
-	b.Handle(tele.OnQuery, func(c tele.Context) error {
+	b.Handle(tele.OnQuery, func(ctx tele.Context) error {
 
-		log.Println(c.Sender().Username, "searching")
+		log.Println(ctx.Sender().Username, "searching")
 
-		countdowns, err := GetAllCountdown(c.Sender())
+		countdowns, err := GetAllCountdown(ctx.Sender())
 		if err != nil {
 			return err
 		}
 
-		results := make(tele.Results, len(countdowns))
+		results := make(tele.Results, len(countdowns)+1)
 		for i, c := range countdowns {
 
 			startDate, _ := time.Parse(time.DateOnly, c.Date)
-			days := int(time.Now().Sub(startDate).Hours() / 24)
+			startDate = startDate.In(time.Local) // SB UTC
+			days := int(math.Round(time.Now().Sub(startDate).Hours() / 24))
 			middleStr := "已经"
 			if days < 0 {
 				days = -days
@@ -120,14 +122,19 @@ func main() {
 
 			text := fmt.Sprintf("%s: %d天", c.Name, days)
 
-			results[i] = &tele.ArticleResult{
-				Title: text,
-				Text:  fmt.Sprintf("距离 %s %s%d天\n\n日期：%s", c.Name, middleStr, days, c.Date),
+			results[0] = &tele.ArticleResult{
+				Title: "tips: 在 inline 里输入的内容在选择倒计时后都会被加到最前面哦～",
+				Text:  "喵呜",
 			}
-			results[i].SetResultID(strconv.Itoa(i))
+
+			results[i+1] = &tele.ArticleResult{
+				Title: text,
+				Text:  fmt.Sprintf("%s\n\n距离 %s %s%d天\n\n日期：%s", ctx.Query().Text, c.Name, middleStr, days, c.Date),
+			}
+			results[i+1].SetResultID(strconv.Itoa(i))
 		}
 
-		return c.Answer(&tele.QueryResponse{
+		return ctx.Answer(&tele.QueryResponse{
 			Results:    results,
 			CacheTime:  0,
 			IsPersonal: true,

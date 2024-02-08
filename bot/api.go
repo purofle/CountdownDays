@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	tele "gopkg.in/telebot.v3"
+	"strconv"
 )
 
 func client() *resty.Client {
@@ -66,15 +68,23 @@ func GetAllCountdown(user *tele.User) ([]CountdownResponse, error) {
 	return countdowns, nil
 }
 
-func DeleteCountdown(user *tele.User, id int) error {
-	_, err := client().R().
-		Delete(fmt.Sprintf("/countdown/%d/%d", user.ID, id))
+func DeleteCountdown(user *tele.User, id int) (string, error) {
+	response, err := client().R().
+		SetPathParams(map[string]string{
+			"user": strconv.FormatInt(user.ID, 10),
+			"id":   strconv.Itoa(id),
+		}).
+		Delete("/countdown/{user}/{id}")
 
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	if response.StatusCode() != 200 {
+		return "", errors.New(string(response.Body()))
+	}
+
+	return string(response.Body()), nil
 }
 
 func NewUser(user *tele.User) (string, error) {
