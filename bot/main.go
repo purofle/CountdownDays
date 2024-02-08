@@ -27,6 +27,10 @@ func main() {
 		return c.Send("Hello!")
 	})
 
+	b.Handle("/start", func(c tele.Context) error {
+		return c.Send("/add 1989-06-04 标题\n/all 查看所有id\n/delete + id 删除")
+	})
+
 	b.Handle("/add", func(c tele.Context) error {
 
 		rawCommand := GetRawCommand(c.Message().Text)
@@ -105,10 +109,23 @@ func main() {
 
 		countdowns, err := GetAllCountdown(ctx.Sender())
 		if err != nil {
-			return err
+			countdowns = []CountdownResponse{}
 		}
 
 		results := make(tele.Results, len(countdowns)+1)
+
+		if len(countdowns) == 0 {
+			results[0] = &tele.ArticleResult{
+				Title: "tips: 在 inline 里输入的内容在选择倒计时后都会被加到最前面哦～",
+				Text:  "你好，我是倒计时 bot，我的 id 是 6872551455，快来私聊 @countdown_days_bot 添加倒计时",
+			}
+		} else {
+			results[0] = &tele.ArticleResult{
+				Title: "tips: 在 inline 里输入的内容在选择倒计时后都会被加到最前面哦～",
+				Text:  "喵呜",
+			}
+		}
+
 		for i, c := range countdowns {
 
 			startDate, _ := time.Parse(time.DateOnly, c.Date)
@@ -122,16 +139,13 @@ func main() {
 
 			text := fmt.Sprintf("%s: %d天", c.Name, days)
 
-			results[0] = &tele.ArticleResult{
-				Title: "tips: 在 inline 里输入的内容在选择倒计时后都会被加到最前面哦～",
-				Text:  "喵呜",
+			if len(countdowns) != 0 {
+				results[i+1] = &tele.ArticleResult{
+					Title: text,
+					Text:  fmt.Sprintf("%s\n\n距离 %s %s%d天\n\n日期：%s", ctx.Query().Text, c.Name, middleStr, days, c.Date),
+				}
+				results[i+1].SetResultID(strconv.Itoa(i))
 			}
-
-			results[i+1] = &tele.ArticleResult{
-				Title: text,
-				Text:  fmt.Sprintf("%s\n\n距离 %s %s%d天\n\n日期：%s", ctx.Query().Text, c.Name, middleStr, days, c.Date),
-			}
-			results[i+1].SetResultID(strconv.Itoa(i))
 		}
 
 		return ctx.Answer(&tele.QueryResponse{
