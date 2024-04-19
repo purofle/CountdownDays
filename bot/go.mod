@@ -7,4 +7,4 @@ require (
 	gopkg.in/telebot.v3 v3.2.1
 )
 
-require golang.org/x/net v0.17.0 // indirect
+require golang.org/x/net v0.23.0 // indirect
